@@ -1,386 +1,503 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>줄넘기 리듬 카운터</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body {
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: manipulation;
-    }
-    .tap-active {
-      transform: scale(0.98);
-      background-color: rgba(59, 130, 246, 0.08);
-    }
-  </style>
-</head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans overflow-hidden">
-
-  <!-- Header -->
-  <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700 px-4 py-3 flex items-center justify-between z-20">
-    <div class="flex items-center gap-2">
-      <div class="p-2 bg-blue-600 rounded-lg text-white">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8"/><path d="M4 16l3-8 3 8"/><path d="M2 21h20"/><path d="M7 12h10"/></svg>
-      </div>
-      <h1 class="font-bold text-lg text-slate-100">줄넘기 카운터</h1>
-    </div>
-    <button id="reset-btn" class="px-3 py-1.5 text-xs font-semibold bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-lg hover:bg-rose-500/30 transition">
-      초기화
-    </button>
-  </header>
-
-  <!-- Main Dashboard -->
-  <main id="tap-area" class="flex-1 flex flex-col p-4 gap-4 max-w-md mx-auto w-full justify-between transition-colors duration-100 cursor-pointer">
-    
-    <!-- Top Row Stats: Timer & Target Pace -->
-    <div class="grid grid-cols-2 gap-3 z-10">
-      <!-- Stopwatch -->
-      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-3 flex flex-col justify-between">
-        <span class="text-xs font-medium text-slate-400">스톱워치</span>
-        <div id="stopwatch-display" class="text-2xl font-mono font-bold text-emerald-400 my-1">00:00.0</div>
-        <div class="flex gap-1.5 mt-1">
-          <button id="timer-toggle-btn" class="flex-1 py-1 bg-emerald-600/30 text-emerald-300 text-xs rounded border border-emerald-500/30 font-medium">시작</button>
-        </div>
-      </div>
-
-      <!-- Target Time & Goal Calculation -->
-      <div id="target-card" class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-3 flex flex-col justify-between">
-        <div class="flex justify-between items-center">
-          <span class="text-xs font-medium text-slate-400">목표 예상</span>
-          <div class="flex items-center gap-1 bg-slate-900/80 rounded px-1.5 py-0.5 border border-slate-700">
-            <button id="target-minus" class="text-xs text-slate-300 font-bold px-1 disabled:opacity-30">-</button>
-            <span id="target-time-label" class="text-[11px] font-mono text-blue-400 font-semibold">0:30</span>
-            <button id="target-plus" class="text-xs text-slate-300 font-bold px-1 disabled:opacity-30">+</button>
-          </div>
-        </div>
-        <div class="my-1">
-          <span id="estimated-count" class="text-2xl font-mono font-bold text-blue-400">0</span>
-          <span class="text-xs text-slate-400">회</span>
-        </div>
-        <div id="target-status" class="text-[10px] text-slate-400 truncate">평균 속도 기준 예상</div>
-      </div>
-    </div>
-
-    <!-- Main Count Display -->
-    <div class="flex-1 flex flex-col items-center justify-center my-2 pointer-events-none">
-      <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase mb-1">Jump Count</span>
-      <div id="jump-count" class="text-7xl font-extrabold text-white font-mono tracking-tight">0</div>
-      <span class="text-xs text-slate-500 mt-3 animate-pulse">화면 아무 곳이나 탭하여 카운트</span>
-    </div>
-
-    <!-- Speed Meters (Instant & Average) -->
-    <div class="grid grid-cols-2 gap-3 z-10">
-      <!-- Instant Speed -->
-      <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3.5 flex flex-col gap-1">
-        <span class="text-xs font-medium text-slate-400">순간 속도</span>
-        <div class="flex items-baseline gap-1.5">
-          <span id="inst-bpm" class="text-3xl font-bold font-mono text-amber-400">0</span>
-          <span class="text-xs font-semibold text-amber-400/80">BPM</span>
-        </div>
-        <div class="text-xs text-slate-400 font-mono">
-          <span id="inst-bps">0.0</span> <span class="text-[10px] text-slate-500">BPS</span>
-        </div>
-      </div>
-
-      <!-- Average Speed -->
-      <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3.5 flex flex-col gap-1">
-        <span class="text-xs font-medium text-slate-400">평균 속도</span>
-        <div class="flex items-baseline gap-1.5">
-          <span id="avg-bpm" class="text-3xl font-bold font-mono text-indigo-400">0</span>
-          <span class="text-xs font-semibold text-indigo-400/80">BPM</span>
-        </div>
-        <div class="text-xs text-slate-400 font-mono">
-          <span id="avg-bps">0.0</span> <span class="text-[10px] text-slate-500">BPS</span>
-        </div>
-      </div>
-    </div>
-
-  </main>
-
-  <!-- Reset Confirmation Modal -->
-  <div id="reset-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-    <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 max-w-xs w-full text-center shadow-xl">
-      <h3 class="text-base font-bold text-slate-100 mb-2">기록을 초기화할까요?</h3>
-      <p class="text-xs text-slate-400 mb-5">측정된 카운터, 시간, 속도 데이터가 모두 0으로 설정됩니다.</p>
-      <div class="flex gap-2">
-        <button id="modal-cancel" class="flex-1 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-medium text-slate-300">취소</button>
-        <button id="modal-confirm" class="flex-1 py-2 bg-rose-600 hover:bg-rose-500 rounded-lg text-xs font-medium text-white">초기화</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // State Variables
-    let count = 0;
-    let startTime = null;
-    let elapsedMs = 0;
-    let timerInterval = null;
-    let calcInterval = null;
-    let isRunning = false;
-
-    let tapHistory = []; // Recent tap timestamps for smoothing instant BPM
-    let lastTapTime = null;
-
-    // Target Time (seconds) : 30s to 180s (3m)
-    const TARGET_STEPS = [30, 60, 90, 120, 150, 180];
-    let targetStepIdx = 0; // default 30s
-
-    // DOM Elements
-    const tapArea = document.getElementById('tap-area');
-    const jumpCountEl = document.getElementById('jump-count');
-    const stopwatchEl = document.getElementById('stopwatch-display');
-    const timerToggleBtn = document.getElementById('timer-toggle-btn');
-    
-    const instBpmEl = document.getElementById('inst-bpm');
-    const instBpsEl = document.getElementById('inst-bps');
-    const avgBpmEl = document.getElementById('avg-bpm');
-    const avgBpsEl = document.getElementById('avg-bps');
-
-    const targetTimeLabel = document.getElementById('target-time-label');
-    const estimatedCountEl = document.getElementById('estimated-count');
-    const targetCard = document.getElementById('target-card');
-    const targetStatus = document.getElementById('target-status');
-    const targetMinusBtn = document.getElementById('target-minus');
-    const targetPlusBtn = document.getElementById('target-plus');
-
-    const resetBtn = document.getElementById('reset-btn');
-    const resetModal = document.getElementById('reset-modal');
-    const modalCancel = document.getElementById('modal-cancel');
-    const modalConfirm = document.getElementById('modal-confirm');
-
-    // Format Seconds to MM:SS
-    function formatTargetTime(sec) {
-      const m = Math.floor(sec / 60);
-      const s = sec % 60;
-      return `${m}:${s < 10 ? '0' : ''}${s}`;
-    }
-
-    // Format Stopwatch MM:SS.ms
-    function formatTime(ms) {
-      const totalSec = Math.floor(ms / 1000);
-      const m = Math.floor(totalSec / 60);
-      const s = totalSec % 60;
-      const msDec = Math.floor((ms % 1000) / 100);
-      return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}.${msDec}`;
-    }
-
-    // Update Stopwatch Display
-    function updateStopwatch() {
-      if (isRunning) {
-        elapsedMs = Date.now() - startTime;
-      }
-      stopwatchEl.textContent = formatTime(elapsedMs);
-    }
-
-    // Main Calculator Loop (Runs every 1s)
-    function updateCalculations() {
-      const currentElapsedSec = elapsedMs / 1000;
-
-      // Auto-step up Target Time if stopwatch exceeds current target
-      let currentTargetSec = TARGET_STEPS[targetStepIdx];
-      while (currentElapsedSec > currentTargetSec && targetStepIdx < TARGET_STEPS.length - 1) {
-        targetStepIdx++;
-        currentTargetSec = TARGET_STEPS[targetStepIdx];
-      }
-      updateTargetUI();
-
-      // Check 3 Minutes (180s) Limit Exceeded
-      const isExceeded3Min = currentElapsedSec > 180;
-
-      // 1. Calculate Average BPM & BPS
-      let avgBpm = 0;
-      let avgBps = 0;
-
-      if (currentElapsedSec > 0 && count > 0) {
-        avgBps = count / currentElapsedSec;
-        avgBpm = avgBps * 60;
-      }
-
-      avgBpmEl.textContent = Math.round(avgBpm);
-      avgBpsEl.textContent = avgBps.toFixed(1);
-
-      // 2. Calculate Estimated Count for Target Time
-      if (isExceeded3Min) {
-        targetCard.classList.add('opacity-50');
-        estimatedCountEl.textContent = "OFF";
-        targetStatus.textContent = "3분 초과 (비활성화)";
-      } else {
-        targetCard.classList.remove('opacity-50');
-        if (avgBpm > 0) {
-          const estimated = Math.round(avgBps * currentTargetSec);
-          estimatedCountEl.textContent = estimated;
-          targetStatus.textContent = `${formatTargetTime(currentTargetSec)} 동안 예상 횟수`;
-        } else {
-          estimatedCountEl.textContent = "0";
-          targetStatus.textContent = "평균 속도 기준 예상";
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>줄넘기 리듬 카운터</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
         }
-      }
+    </script>
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
+        }
+        .tap-active {
+            transform: scale(0.98);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        .modal-animate {
+            animation: fadeIn 0.2s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen w-screen overflow-hidden flex flex-col font-sans antialiased">
+    
+    <!-- App Container -->
+    <div class="max-w-md w-full mx-auto h-full flex flex-col justify-between p-4 sm:p-5 relative z-10">
+        
+        <!-- Header -->
+        <header class="flex items-center justify-between border-b border-slate-800 pb-3 flex-shrink-0">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-person-skipping text-sky-400 text-2xl"></i>
+                <h1 class="text-xl font-extrabold tracking-tight text-white">줄넘기 카운터</h1>
+            </div>
+            <!-- Reset Button in Header -->
+            <button id="reset-btn" class="px-3 py-1.5 text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition border border-rose-500/30 flex items-center gap-1.5 active:scale-95">
+                <i class="fa-solid fa-rotate-right"></i> 초기화
+            </button>
+        </header>
 
-      // Clear instant speed if idle for more than 2 seconds
-      if (lastTapTime && (Date.now() - lastTapTime > 2000)) {
-        instBpmEl.textContent = "0";
-        instBpsEl.textContent = "0.0";
-        tapHistory = [];
-      }
-    }
+        <!-- Main Display Cards Grid -->
+        <div class="grid grid-cols-2 gap-3 my-2 flex-shrink-0">
+            <!-- Total Count Card (Full Width) -->
+            <div class="col-span-2 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 text-center shadow-lg backdrop-blur-md">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">줄넘기 뛴 수</div>
+                <div class="flex items-baseline justify-center">
+                    <span id="jump-count" class="text-5xl font-black text-sky-400 tracking-tight">0</span>
+                    <span class="text-sm font-medium text-slate-400 ml-1.5">회</span>
+                </div>
+            </div>
 
-    // Target Time UI State Handler
-    function updateTargetUI() {
-      const currentTargetSec = TARGET_STEPS[targetStepIdx];
-      const currentElapsedSec = elapsedMs / 1000;
+            <!-- Instant Speed (BPM & BPS) -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 text-center shadow-md">
+                <div class="text-xs font-medium text-slate-400 mb-1 flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-bolt text-amber-400 text-[10px]"></i> 순간 속도
+                </div>
+                <div class="flex items-baseline justify-center gap-1">
+                    <span id="instant-bpm" class="text-2xl font-bold text-amber-400">0</span>
+                    <span class="text-xs text-slate-400">BPM</span>
+                </div>
+                <div class="text-[11px] text-slate-400 mt-0.5">
+                    <span id="instant-bps" class="font-semibold text-amber-300/80">0.00</span> BPS
+                </div>
+            </div>
 
-      targetTimeLabel.textContent = formatTargetTime(currentTargetSec);
+            <!-- Average Speed (BPM & BPS) -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 text-center shadow-md">
+                <div class="text-xs font-medium text-slate-400 mb-1 flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-chart-line text-emerald-400 text-[10px]"></i> 평균 속도
+                </div>
+                <div class="flex items-baseline justify-center gap-1">
+                    <span id="avg-bpm" class="text-2xl font-bold text-emerald-400">0</span>
+                    <span class="text-xs text-slate-400">BPM</span>
+                </div>
+                <div class="text-[11px] text-slate-400 mt-0.5">
+                    <span id="avg-bps" class="font-semibold text-emerald-300/80">0.00</span> BPS
+                </div>
+            </div>
+        </div>
 
-      // Disable minus button if decreasing would drop target below current stopwatch time or step limit
-      const prevStepSec = targetStepIdx > 0 ? TARGET_STEPS[targetStepIdx - 1] : 0;
-      if (targetStepIdx === 0 || currentElapsedSec >= currentTargetSec || currentElapsedSec > prevStepSec) {
-        targetMinusBtn.disabled = true;
-      } else {
-        targetMinusBtn.disabled = false;
-      }
+        <!-- Stopwatch Display Controls -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 shadow-md flex items-center justify-between my-1 flex-shrink-0">
+            <div>
+                <div class="text-[11px] font-medium text-slate-400 mb-0.5">스톱워치</div>
+                <div id="stopwatch" class="text-2xl font-mono font-bold text-slate-100">00:00.00</div>
+            </div>
+            <div class="flex gap-2">
+                <button id="toggle-timer-btn" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition flex items-center justify-center w-10 h-10 border border-slate-700 active:scale-95">
+                    <i id="timer-icon" class="fa-solid fa-play"></i>
+                </button>
+            </div>
+        </div>
 
-      // Plus button disabled if max step (3 mins) reached
-      targetPlusBtn.disabled = (targetStepIdx >= TARGET_STEPS.length - 1);
-    }
+        <!-- Target Projection Calculator Card -->
+        <div id="projection-card" class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 shadow-md space-y-2.5 my-1 transition-all duration-300 flex-shrink-0">
+            <div class="flex items-center justify-between">
+                <div class="text-xs font-semibold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="fa-solid fa-calculator"></i> 목표 시간별 예상 횟수
+                </div>
+                <!-- Target Duration Adjustment Controls -->
+                <div id="target-controls" class="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                    <button id="decrease-target" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-slate-200 transition">
+                        <i class="fa-solid fa-minus text-xs"></i>
+                    </button>
+                    <span id="target-time-display" class="text-xs font-bold text-slate-200 min-w-[54px] text-center">30초</span>
+                    <button id="increase-target" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-slate-200 transition">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                    </button>
+                </div>
+            </div>
 
-    // Handle Tap Event
-    function handleTap(e) {
-      // Prevent double firing on touch devices & exclude button clicks
-      if (e.target.closest('button')) return;
-      if (e.type === 'touchstart') e.preventDefault();
+            <!-- Active Projection Result Block -->
+            <div id="projection-body" class="bg-slate-950/60 rounded-xl p-2.5 border border-slate-800/80 flex items-center justify-between transition-all">
+                <div class="text-xs text-slate-400">
+                    평균 속도로 <span id="target-time-text" class="text-slate-200 font-semibold">30초</span> 동안 뛸 경우:
+                </div>
+                <div class="text-right">
+                    <span id="projected-jumps" class="text-2xl font-black text-sky-300">0</span>
+                    <span class="text-xs text-slate-400">회</span>
+                </div>
+            </div>
 
-      const now = Date.now();
+            <!-- Disabled State Indicator -->
+            <div id="projection-off-msg" class="hidden text-center py-2 text-xs text-slate-500 font-medium">
+                <i class="fa-solid fa-ban text-rose-400/80 mr-1"></i> 3분을 초과하여 예상 횟수가 비활성화되었습니다.
+            </div>
+        </div>
 
-      // Filter out duplicate taps or physically impossible speeds (< 120ms = > 500 BPM)
-      if (lastTapTime && (now - lastTapTime < 120)) {
-        return;
-      }
+        <!-- Main Interactive Tap Area -->
+        <div id="tap-area" class="flex-1 min-h-[120px] my-2 bg-gradient-to-br from-sky-600 to-sky-700 hover:from-sky-500 hover:to-sky-600 active:from-sky-700 active:to-sky-800 rounded-2xl border border-sky-400/30 flex flex-col items-center justify-center p-4 text-center shadow-xl cursor-pointer select-none transition-all duration-75 relative overflow-hidden group">
+            <div class="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+            <i class="fa-solid fa-hand-pointer text-3xl sm:text-4xl text-sky-100 mb-2 opacity-90 transition-transform group-active:scale-90"></i>
+            <span class="text-lg sm:text-xl font-bold text-white drop-shadow-sm">화면을 탭하세요!</span>
+            <span class="text-xs text-sky-100/80 mt-1">줄넘기를 뛸 때마다 박자에 맞춰 화면을 누르세요</span>
+        </div>
 
-      // Auto start stopwatch on first tap
-      if (!isRunning && count === 0) {
-        startTimer();
-      }
+    </div>
 
-      count++;
-      jumpCountEl.textContent = count;
+    <!-- Confirmation Modal for Reset -->
+    <div id="reset-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xs w-full p-5 text-center shadow-2xl modal-animate">
+            <div class="w-12 h-12 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto mb-3 border border-rose-500/20">
+                <i class="fa-solid fa-rotate-right text-xl"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-1">카운터 초기화</h3>
+            <p class="text-xs text-slate-400 mb-5">모든 측정 데이터(카운트, 속도, 스톱워치)를 리셋하시겠습니까?</p>
+            <div class="flex gap-2">
+                <button id="cancel-reset-btn" class="flex-1 py-2.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition border border-slate-700">
+                    취소
+                </button>
+                <button id="confirm-reset-btn" class="flex-1 py-2.5 text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white rounded-xl transition">
+                    초기화
+                </button>
+            </div>
+        </div>
+    </div>
 
-      // Tap Animation Effect
-      tapArea.classList.add('tap-active');
-      setTimeout(() => tapArea.classList.remove('tap-active'), 80);
+    <!-- JavaScript Logic -->
+    <script>
+        // State Variables
+        let count = 0;
+        let lastTapTime = null;
+        let activeElapsedTime = 0; // In milliseconds
+        let stopwatchInterval = null;
+        let recalculateInterval = null;
+        let isRunning = false;
+        
+        // Target duration in seconds: 30, 60, 90, 120, 150, 180 (Step: 30s)
+        let targetDurationSec = 30; 
+        let isProjectionDisabled = false;
 
-      // Instant BPM calculation (using moving average of last 5 tap intervals)
-      if (lastTapTime) {
-        const intervalSec = (now - lastTapTime) / 1000;
-        tapHistory.push(intervalSec);
-        if (tapHistory.length > 5) tapHistory.shift();
+        // DOM Element Cache
+        const jumpCountEl = document.getElementById('jump-count');
+        const instantBpmEl = document.getElementById('instant-bpm');
+        const instantBpsEl = document.getElementById('instant-bps');
+        const avgBpmEl = document.getElementById('avg-bpm');
+        const avgBpsEl = document.getElementById('avg-bps');
+        const stopwatchEl = document.getElementById('stopwatch');
 
-        const avgInterval = tapHistory.reduce((a, b) => a + b, 0) / tapHistory.length;
-        const instBps = 1 / avgInterval;
-        const instBpm = instBps * 60;
+        const projectionCard = document.getElementById('projection-card');
+        const projectionBody = document.getElementById('projection-body');
+        const projectionOffMsg = document.getElementById('projection-off-msg');
+        const projectedJumpsEl = document.getElementById('projected-jumps');
+        const targetTimeDisplayEl = document.getElementById('target-time-display');
+        const targetTimeTextEl = document.getElementById('target-time-text');
 
-        instBpmEl.textContent = Math.round(instBpm);
-        instBpsEl.textContent = instBps.toFixed(1);
-      }
+        const tapArea = document.getElementById('tap-area');
+        const resetBtn = document.getElementById('reset-btn');
+        const resetModal = document.getElementById('reset-modal');
+        const confirmResetBtn = document.getElementById('confirm-reset-btn');
+        const cancelResetBtn = document.getElementById('cancel-reset-btn');
 
-      lastTapTime = now;
-      updateCalculations();
-    }
+        const toggleTimerBtn = document.getElementById('toggle-timer-btn');
+        const timerIcon = document.getElementById('timer-icon');
+        const decreaseTargetBtn = document.getElementById('decrease-target');
+        const increaseTargetBtn = document.getElementById('increase-target');
 
-    // Timer Controls
-    function startTimer() {
-      if (isRunning) return;
-      isRunning = true;
-      startTime = Date.now() - elapsedMs;
-      timerInterval = setInterval(updateStopwatch, 100);
-      calcInterval = setInterval(updateCalculations, 1000);
-      timerToggleBtn.textContent = "일시정지";
-      timerToggleBtn.className = "flex-1 py-1 bg-amber-600/30 text-amber-300 text-xs rounded border border-amber-500/30 font-medium";
-    }
+        // Web Audio API for tap audio feedback
+        let audioCtx = null;
 
-    function pauseTimer() {
-      if (!isRunning) return;
-      isRunning = false;
-      clearInterval(timerInterval);
-      clearInterval(calcInterval);
-      timerToggleBtn.textContent = "재개";
-      timerToggleBtn.className = "flex-1 py-1 bg-emerald-600/30 text-emerald-300 text-xs rounded border border-emerald-500/30 font-medium";
-    }
+        function playTapSound() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.05);
+            } catch (e) {
+                // Audio fallback
+            }
+        }
 
-    // Reset All Data
-    function resetAll() {
-      pauseTimer();
-      count = 0;
-      elapsedMs = 0;
-      tapHistory = [];
-      lastTapTime = null;
-      targetStepIdx = 0;
+        // Format Stopwatch Text
+        function updateStopwatchDisplay() {
+            const totalMs = activeElapsedTime;
+            const minutes = Math.floor(totalMs / 60000);
+            const seconds = Math.floor((totalMs % 60000) / 1000);
+            const ms = Math.floor((totalMs % 1000) / 10);
 
-      jumpCountEl.textContent = "0";
-      stopwatchEl.textContent = "00:00.0";
-      instBpmEl.textContent = "0";
-      instBpsEl.textContent = "0.0";
-      avgBpmEl.textContent = "0";
-      avgBpsEl.textContent = "0.0";
-      estimatedCountEl.textContent = "0";
+            const pad = (n) => n.toString().padStart(2, '0');
+            stopwatchEl.textContent = `${pad(minutes)}:${pad(seconds)}.${pad(ms)}`;
+        }
 
-      timerToggleBtn.textContent = "시작";
-      timerToggleBtn.className = "flex-1 py-1 bg-emerald-600/30 text-emerald-300 text-xs rounded border border-emerald-500/30 font-medium";
+        // Start Stopwatch & Recalculation Loops
+        function startTimer() {
+            if (isRunning) return;
+            isRunning = true;
+            timerIcon.className = "fa-solid fa-pause";
+            let lastTimestamp = performance.now();
 
-      updateTargetUI();
-      updateCalculations();
-    }
+            stopwatchInterval = setInterval(() => {
+                const now = performance.now();
+                activeElapsedTime += (now - lastTimestamp);
+                lastTimestamp = now;
+                updateStopwatchDisplay();
+                checkAndAutoAdvanceTargetTime();
+            }, 30);
 
-    // Event Listeners
-    tapArea.addEventListener('touchstart', handleTap, { passive: false });
-    tapArea.addEventListener('click', handleTap);
+            recalculateInterval = setInterval(() => {
+                recalculateAveragesAndProjection();
+            }, 1000);
+        }
 
-    timerToggleBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (isRunning) pauseTimer();
-      else startTimer();
-    });
+        // Pause Stopwatch
+        function pauseTimer() {
+            if (!isRunning) return;
+            isRunning = false;
+            timerIcon.className = "fa-solid fa-play";
+            clearInterval(stopwatchInterval);
+            clearInterval(recalculateInterval);
+            stopwatchInterval = null;
+            recalculateInterval = null;
+        }
 
-    targetMinusBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (targetStepIdx > 0) {
-        targetStepIdx--;
+        toggleTimerBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isRunning) {
+                pauseTimer();
+            } else {
+                startTimer();
+            }
+        });
+
+        // Dynamic Target Time Auto-Advance Rule Logic
+        function checkAndAutoAdvanceTargetTime() {
+            const elapsedSec = activeElapsedTime / 1000;
+
+            if (isProjectionDisabled) return;
+
+            if (targetDurationSec === 30 && elapsedSec > 30) {
+                targetDurationSec = 60;
+                updateTargetUI();
+            } else if (targetDurationSec === 60 && elapsedSec > 60) {
+                targetDurationSec = 90;
+                updateTargetUI();
+            } else if (targetDurationSec === 90 && elapsedSec > 90) {
+                targetDurationSec = 120;
+                updateTargetUI();
+            } else if (targetDurationSec === 120 && elapsedSec > 120) {
+                targetDurationSec = 150;
+                updateTargetUI();
+            } else if (targetDurationSec === 150 && elapsedSec > 150) {
+                targetDurationSec = 180;
+                updateTargetUI();
+            } else if (targetDurationSec === 180 && elapsedSec > 180) {
+                isProjectionDisabled = true;
+                updateTargetUI();
+            }
+        }
+
+        // Tap Action Handler with Debounce / Filtering
+        function handleTap(e) {
+            if (e && e.cancelable) {
+                e.preventDefault();
+            }
+
+            const now = performance.now();
+
+            // Mobile Debounce Filter (Prevent duplicate multi-touch or accidental < 100ms triggers)
+            if (lastTapTime !== null) {
+                const deltaMs = now - lastTapTime;
+                if (deltaMs < 100) {
+                    return; // Ignore sub-100ms rapid double triggers
+                }
+
+                // Instantaneous BPM / BPS calculation
+                const instantBps = 1000 / deltaMs;
+                const instantBpm = instantBps * 60;
+
+                // Cap max realistic BPM to prevent extreme spikes (max 360 BPM)
+                if (instantBpm <= 360) {
+                    instantBpmEl.textContent = Math.round(instantBpm);
+                    instantBpsEl.textContent = instantBps.toFixed(2);
+                }
+            } else {
+                instantBpmEl.textContent = '0';
+                instantBpsEl.textContent = '0.00';
+            }
+
+            lastTapTime = now;
+            count++;
+            jumpCountEl.textContent = count;
+
+            // Visual feedback animation
+            tapArea.classList.add('tap-active');
+            setTimeout(() => tapArea.classList.remove('tap-active'), 80);
+
+            playTapSound();
+            if (navigator.vibrate) {
+                navigator.vibrate(20);
+            }
+
+            if (!isRunning) {
+                startTimer();
+            }
+
+            recalculateAveragesAndProjection();
+        }
+
+        function recalculateAveragesAndProjection() {
+            if (count > 0 && activeElapsedTime > 0) {
+                const totalSec = activeElapsedTime / 1000;
+                const avgBps = count / totalSec;
+                const avgBpm = avgBps * 60;
+
+                avgBpmEl.textContent = Math.round(avgBpm);
+                avgBpsEl.textContent = avgBps.toFixed(2);
+
+                if (!isProjectionDisabled) {
+                    const projected = Math.round((avgBpm / 60) * targetDurationSec);
+                    projectedJumpsEl.textContent = projected.toLocaleString();
+                }
+            } else {
+                avgBpmEl.textContent = '0';
+                avgBpsEl.textContent = '0.00';
+                projectedJumpsEl.textContent = '0';
+            }
+        }
+
+        function formatTargetTimeText(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            if (m > 0 && s > 0) return `${m}분 ${s}초`;
+            if (m > 0) return `${m}분`;
+            return `${s}초`;
+        }
+
+        function updateTargetUI() {
+            const formatted = formatTargetTimeText(targetDurationSec);
+            targetTimeDisplayEl.textContent = formatted;
+            targetTimeTextEl.textContent = formatted;
+
+            const currentElapsedSec = activeElapsedTime / 1000;
+
+            if (isProjectionDisabled) {
+                projectionBody.classList.add('hidden');
+                projectionOffMsg.classList.remove('hidden');
+                projectionCard.classList.add('opacity-50');
+                decreaseTargetBtn.disabled = true;
+                increaseTargetBtn.disabled = true;
+                return;
+            } else {
+                projectionBody.classList.remove('hidden');
+                projectionOffMsg.classList.add('hidden');
+                projectionCard.classList.remove('opacity-50');
+            }
+
+            const nextLowerStep = targetDurationSec - 30;
+            if (nextLowerStep < currentElapsedSec || targetDurationSec <= 30) {
+                decreaseTargetBtn.disabled = true;
+            } else {
+                decreaseTargetBtn.disabled = false;
+            }
+
+            increaseTargetBtn.disabled = targetDurationSec >= 180;
+
+            recalculateAveragesAndProjection();
+        }
+
+        increaseTargetBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (targetDurationSec < 180 && !isProjectionDisabled) {
+                targetDurationSec += 30;
+                updateTargetUI();
+            }
+        });
+
+        decreaseTargetBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const currentElapsedSec = activeElapsedTime / 1000;
+            if (targetDurationSec > 30 && (targetDurationSec - 30) >= currentElapsedSec && !isProjectionDisabled) {
+                targetDurationSec -= 30;
+                updateTargetUI();
+            }
+        });
+
+        // Reset Controls
+        function openResetModal(e) {
+            if (e) e.stopPropagation();
+            resetModal.classList.remove('hidden');
+        }
+
+        function closeResetModal() {
+            resetModal.classList.add('hidden');
+        }
+
+        function executeReset() {
+            pauseTimer();
+            count = 0;
+            lastTapTime = null;
+            activeElapsedTime = 0;
+            targetDurationSec = 30;
+            isProjectionDisabled = false;
+
+            jumpCountEl.textContent = '0';
+            instantBpmEl.textContent = '0';
+            instantBpsEl.textContent = '0.00';
+            avgBpmEl.textContent = '0';
+            avgBpsEl.textContent = '0.00';
+            projectedJumpsEl.textContent = '0';
+
+            updateStopwatchDisplay();
+            updateTargetUI();
+            closeResetModal();
+        }
+
+        resetBtn.addEventListener('click', openResetModal);
+        cancelResetBtn.addEventListener('click', closeResetModal);
+        confirmResetBtn.addEventListener('click', executeReset);
+
+        resetModal.addEventListener('click', (e) => {
+            if (e.target === resetModal) closeResetModal();
+        });
+
+        // Register Touch / Pointer Events cleanly
+        tapArea.addEventListener('pointerdown', handleTap);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && e.target === document.body) {
+                e.preventDefault();
+                handleTap();
+            }
+        });
+
         updateTargetUI();
-        updateCalculations();
-      }
-    });
-
-    targetPlusBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (targetStepIdx < TARGET_STEPS.length - 1) {
-        targetStepIdx++;
-        updateTargetUI();
-        updateCalculations();
-      }
-    });
-
-    // Modal Control
-    resetBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      resetModal.classList.remove('hidden');
-      resetModal.classList.add('flex');
-    });
-
-    modalCancel.addEventListener('click', () => {
-      resetModal.classList.add('hidden');
-      resetModal.classList.remove('flex');
-    });
-
-    modalConfirm.addEventListener('click', () => {
-      resetModal.classList.add('hidden');
-      resetModal.classList.remove('flex');
-      resetAll();
-    });
-
-    // Initial Setup
-    updateTargetUI();
-  </script>
+    </script>
 </body>
 </html>
